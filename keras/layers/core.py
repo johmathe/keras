@@ -167,6 +167,19 @@ class Layer(object):
     def count_params(self):
         return sum([np.prod(p.shape.eval()) for p in self.params])
 
+    def has_consensus(self):
+        return hasattr(self, 'consensus')
+
+    def set_consensus(self, consensus):
+        for i, d in enumerate(self.consensus):
+            d.set_value(consensus[i])
+
+    def dual_update(self):
+        for i, d in enumerate(self.duals):
+            rho = self.regularizers[i].get_rho()
+            d.set_value(
+                d.get_value() + rho *
+                (self.params[i].get_value() - self.consensus[i].get_value()))
 
 class MaskedLayer(Layer):
     '''
@@ -567,6 +580,22 @@ class Dense(Layer):
         if self.b_regularizer:
             self.b_regularizer.set_param(self.b)
             self.regularizers.append(self.b_regularizer)
+
+        # Define admm variables if needed:
+        if isinstance(self.W_regularizer,  regularizers.Consensus):
+            self.W_dual = shared_zeros((input_dim, self.output_dim))
+            self.W_regularizer.set_dual(self.W_dual)
+            self.duals = [self.W_dual]
+            self.W_consensus = theano.shared(self.W.get_value())
+            self.W_regularizer.set_consensus(self.W_consensus)
+            self.consensus = [self.W_consensus]
+        if isinstance(self.b_regularizer,  regularizers.Consensus):
+            self.b_dual = shared_zeros((self.output_dim))
+            self.b_regularizer.set_dual(self.b_dual)
+            self.duals.append(self.b_dual)
+            self.b_consensus = theano.shared(self.b.get_value())
+            self.b_regularizer.set_consensus(self.b_consensus)
+            self.consensus.append(self.b_consensus)
 
         if self.activity_regularizer:
             self.activity_regularizer.set_layer(self)

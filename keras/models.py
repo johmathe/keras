@@ -1,8 +1,9 @@
 from __future__ import absolute_import
 from __future__ import print_function
+import cPickle as pickle
+import numpy as np
 import theano
 import theano.tensor as T
-import numpy as np
 import warnings, time, copy, pprint
 from six.moves import range
 import six
@@ -564,6 +565,20 @@ class Sequential(Model, containers.Sequential):
             weights = [g['param_{}'.format(p)] for p in range(g.attrs['nb_params'])]
             self.layers[k].set_weights(weights)
         f.close()
+
+    def synchronize_weights(self, socket):
+        w_layers = []
+        for k, l in enumerate([l for l in self.layers if l.has_consensus()]):
+            w_layers.append(l.get_weights())
+        # TODO(johmathe): Smarter serialization
+        weights = pickle.dumps(w_layers)
+        socket.send(weights)
+        # Receive and deserialize new weights
+        unpickled = socket.recv()
+        consensus_vector = pickle.loads(unpickled)
+        for k, l in enumerate([l for l in self.layers if l.has_consensus()]):
+            l.set_consensus(consensus_vector[k])
+            l.dual_update()
 
 
 class Graph(Model, containers.Graph):

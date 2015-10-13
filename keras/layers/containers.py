@@ -79,6 +79,18 @@ class Sequential(Layer):
             self.layers[i].set_weights(weights[:nb_param])
             weights = weights[nb_param:]
 
+    def get_duals(self):
+        duals = []
+        for layer in self.layers:
+            duals += layer.get_dual()
+        return duals
+
+    def get_consensus(self):
+        consensus = []
+        for layer in self.layers:
+            consensus += layer.get_consensus()
+        return consensus
+
     def get_config(self):
         return {"name": self.__class__.__name__,
                 "layers": [layer.get_config() for layer in self.layers]}

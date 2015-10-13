@@ -225,6 +225,23 @@ class Convolution2D(Layer):
             self.set_weights(self.initial_weights)
             del self.initial_weights
 
+        # Define admm variables if needed:
+        if isinstance(self.W_regularizer,  regularizers.Consensus):
+            self.W_dual = shared_zeros(self.W_shape)
+            self.W_regularizer.set_dual(self.W_dual)
+            self.duals = [self.W_dual]
+            self.W_consensus = theano.shared(self.W.get_value())
+            self.W_regularizer.set_consensus(self.W_consensus)
+            self.consensus = [self.W_consensus]
+        if isinstance(self.b_regularizer,  regularizers.Consensus):
+            self.b_dual = shared_zeros((self.nb_filter,))
+            self.b_regularizer.set_dual(self.b_dual)
+            self.duals.append(self.b_dual)
+            self.b_consensus = theano.shared(self.b.get_value())
+            self.b_regularizer.set_consensus(self.b_consensus)
+            self.consensus.append(self.b_consensus)
+
+
     @property
     def output_shape(self):
         input_shape = self.input_shape

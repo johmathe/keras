@@ -3,6 +3,7 @@ from __future__ import print_function
 
 import numpy as np
 import time, json, warnings
+import zmq
 
 from collections import deque
 from .utils.generic_utils import Progbar
@@ -274,3 +275,18 @@ class LearningRateScheduler(Callback):
 
     def on_epoch_begin(self, epoch, logs={}):
         self.model.optimizer.lr.set_value(self.schedule(epoch))
+
+
+class WeightSynchronizer(Callback):
+    '''Remove weight synchronization for // training'''
+    def __init__(self, server_address, frequency=64):
+        context = zmq.Context()
+        self.socket = context.socket(zmq.REQ)
+        self.socket.connect(server_address)
+        self.batch_id = 0
+        self.batch_frequency = frequency
+
+    def on_batch_end(self, batch, logs={}):
+        self.batch_id += 1
+        if self.batch_id % self.batch_frequency == 0:
+            self.model.synchronize_weights(self.socket)

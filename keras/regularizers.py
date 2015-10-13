@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+from theano import dot
 import theano.tensor as T
 
 
@@ -52,6 +53,33 @@ class ActivityRegularizer(Regularizer):
         return {"name": self.__class__.__name__,
                 "l1": self.l1,
                 "l2": self.l2}
+
+
+class Consensus(Regularizer):
+    def __init__(self, rho=0.01):
+        self.rho = rho
+
+    def set_param(self, p):
+        self.p = p
+
+    def set_dual(self, u):
+        self.u = u
+
+    def set_consensus(self, z):
+        self.z = z
+
+    def get_rho(self):
+        return self.rho
+
+    def __call__(self, loss):
+        # Consensus ADMM
+        loss += (dot(self.u.flatten(),  (self.p - self.z).flatten())
+                 + (self.rho / 2) * T.sum((self.p - self.z) ** 2))
+        return loss
+
+    def get_config(self):
+        return {"name": self.__class__.__name__,
+                "rho": self.rho}
 
 
 def l1(l=0.01):
